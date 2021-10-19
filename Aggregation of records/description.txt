@@ -1,5 +1,5 @@
 the goal of these two techniques is to get a big set of values and somehow bring them down to a smaller set of values
-Grouping:
+Grouping: doesnt show repeated values
 1. Reduces many rows down to fewer rows.
 2. Done by using the "Group by" keyword.
 3. Visualizing the result is key to use.
