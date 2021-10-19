@@ -4,3 +4,7 @@ group by user_id
 
 select count(*) from photos
 select count(user_id) from photos
+
+select user_id, count(*)
+from comments
+group by user_id
