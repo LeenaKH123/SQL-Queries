@@ -7,3 +7,9 @@ from comments
 
 SELECT avg(id)
 from comments
+
+SELECT count(id)
+from comments
+
+SELECT sum(id)
+from comments
