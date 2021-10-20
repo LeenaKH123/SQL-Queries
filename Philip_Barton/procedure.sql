@@ -1,10 +1,8 @@
--- first view --
-create view MyFirst as 
+create procedure MyFirstProc()
+BEGIN
 select color, sum(LineTotal) as "Line Total"
 from transactions as T
 left join Product as P
 ON T.ProductID = P.ProductID
-group by color
-
-----to retrieve the result of the view --
-select * from MyFirst
+group by color;
+END
