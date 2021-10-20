@@ -7,4 +7,5 @@ select * from transactions where PurchaseOrderID in (1,8)
 --3rd query - select blue products --
 select * from Product where Color = "blue";
 
-
+--4th query -- wild chars ---
+select * from Product where Color like "%blu%"
