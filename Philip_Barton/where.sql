@@ -9,3 +9,6 @@ select * from Product where Color = "blue";
 
 --4th query -- wild chars ---
 select * from Product where Color like "%blu%"
+
+--5th query -- wild chars and or --
+select * from Product where ProductName like "%blue%" or ProductName like "%silver%"
