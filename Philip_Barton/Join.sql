@@ -9,7 +9,7 @@ left join Product as P
 on T.ProductID = P.ProductID
 
 --- adding more columns to the join
-select PurchaseOrderID, OrderQty, ProductID, UnitPrice, LineTotal from transactions as T
+select PurchaseOrderID, OrderQty, T.ProductID, UnitPrice, LineTotal, ProductName, Color from transactions as T
 left join Product as P
 on T.ProductID = P.ProductID
 
