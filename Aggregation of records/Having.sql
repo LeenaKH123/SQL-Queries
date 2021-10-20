@@ -1,0 +1,2 @@
+--A HAVING clause in SQL specifies that an SQL SELECT statement must only return rows where aggregate values meet
+-- the specified conditions
