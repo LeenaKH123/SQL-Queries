@@ -16,3 +16,17 @@ select name, price / weight As price_weight_ratio
 from products
 ) as p
 where price_weight_ratio > 5;
+
+--4th query
+select max(price) from products;
+
+-- 5th query
+select * from (select max(price) from products) as p;
+
+-- 6th query find the average number of orders for all users
+SELECT AVG(order_count)
+from (
+    select user_id, count(*) as order_count
+    from orders
+    group by user_id
+) as p
