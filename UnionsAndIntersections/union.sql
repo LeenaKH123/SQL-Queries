@@ -1,4 +1,4 @@
--- union notes
+-- notes
 -- unoin join together the reuslts of two queries and remove duplicate rows
 -- union all : join together results of two queries
 -- intersect : find the common rows in the results of two queries
