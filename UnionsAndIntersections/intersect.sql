@@ -1,10 +1,9 @@
-(
-    select *
+ ( select *
     from products
     order by price DESC
     limit 4
-)
-INTERSECT
+ )
+    INTERSECT
 (
     select *
     from products
