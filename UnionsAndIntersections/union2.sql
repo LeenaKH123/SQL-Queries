@@ -7,4 +7,5 @@ where price < 170
 union
 select manufacturer
 from Phones 
-where units_sold > 2
+group by manufacturer
+having count(*) > 2
