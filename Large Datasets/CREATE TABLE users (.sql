@@ -5,8 +5,8 @@ CREATE TABLE users (
   );
 CREATE TABLE products (
   id SERIAL PRIMARY KEY,
-  name VARCHAR,
-  department VARCHAR,
+  name VARCHAR(50),
+  department VARCHAR(50),
   price INTEGER,
   weight INTEGER
 );
