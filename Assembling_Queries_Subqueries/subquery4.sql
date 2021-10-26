@@ -11,4 +11,13 @@ where price > (
 )
 order by price
 
+-- write a query that prints put the name and price of phones
+-- that have a price greator than the Samsung S5620
+select name, price
+from Phones 
+where price > (select price from Phones where name like "%Monte%")
+
+
+
+
 
