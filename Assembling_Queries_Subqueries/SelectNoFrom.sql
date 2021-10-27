@@ -3,3 +3,7 @@
 select (
     select max(price) from products
 )/ (select min (price) from products)
+
+select (
+    select max(price) from products
+) as max1, (select avg (price) from products) as avg1
