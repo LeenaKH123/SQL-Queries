@@ -1,0 +1,1 @@
+select distinct department from products
