@@ -8,3 +8,9 @@ where price > SOME (
 select price
 from products
 where department = 'Industrial');
+
+--write a query that print the name of all phones that have a price
+-- greator than any phone made by samsung
+select name 
+from Phones
+where price > ALL (select price from Phones where manufacturer = 'Samsung')
