@@ -5,3 +5,7 @@ from products
 
 -- least value in a list
 select least (1, 20, 50, 100)
+
+--
+select name, price, least(price * 0.5, 300)
+from products;
