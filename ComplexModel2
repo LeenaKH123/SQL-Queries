@@ -1,0 +1,170 @@
+SELECT
+	DISTINCT pf.REFERENCE as Account,
+	pft.DESCRIPTION as Account_Type,
+	(ISNULL(rel.CUSTOMER_NAME, '')+ ' ' + ISNULL(rel.SURNAME_1, '')+ ' ' + ISNULL(rel.SURNAME_2,'')) as Customer_name,
+	(
+	SELECT
+		TOP 1 gb.BILLING_DATE
+	FROM
+		GCCOM_BILL gb
+	WHERE
+		gb.id_payment_form = pf.ID_PAYMENT_FORM
+	order by
+		gb.BILLING_DATE DESC) as last_Billing_Date,
+	(
+	SELECT
+		TOP 1 gb.BILL_NUMBER
+	FROM
+		GCCOM_BILL gb
+	WHERE
+		gb.id_payment_form = pf.ID_PAYMENT_FORM
+	order by
+		gb.BILLING_DATE DESC) as Bill_Seq,
+	(
+	SELECT
+		TOP 1 gb.BILLING_DATE
+	FROM
+		GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON
+		cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	INNER JOIN gccom_sector_supply ss ON
+		ss.ID_SECTOR_SUPPLY = cs.ID_SECTOR_SUPPLY
+	WHERE
+		gb.id_payment_form = pf.ID_PAYMENT_FORM
+		AND ss.ID_SECTOR = 1
+	order by
+		gb.BILLING_DATE DESC
+) as Last_Billed_Electricity,
+	(
+	SELECT
+		TOP 1 gb.BILLING_DATE
+	FROM
+		GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON
+		cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	INNER JOIN gccom_sector_supply ss ON
+		ss.ID_SECTOR_SUPPLY = cs.ID_SECTOR_SUPPLY
+	WHERE
+		gb.id_payment_form = pf.ID_PAYMENT_FORM
+		AND ss.ID_SECTOR = 3
+	order by
+		gb.BILLING_DATE DESC
+) as Last_Billed_Water,
+	(
+	SELECT
+		TOP 1 gb.BILLING_DATE
+	FROM
+		GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON
+		cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	WHERE
+		gb.id_payment_form = pf.ID_PAYMENT_FORM
+		AND cs.ID_OFFERED_SERVICE = 176
+	order by
+		gb.BILLING_DATE DESC
+) as Last_Billed_Rate,
+	(
+	SELECT
+		TOP 1 gb.BILLING_DATE
+	FROM
+		GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON
+		cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	WHERE
+		gb.id_payment_form = pf.ID_PAYMENT_FORM
+		AND cs.ID_OFFERED_SERVICE = 10000000001
+	order by
+		gb.BILLING_DATE DESC
+) as Last_Billed_Rent,
+	(
+	SELECT
+		TOP 1 oc.COLLECTION_DATE
+	FROM
+		GCCB_ONLINE_COLLECTION oc
+	WHERE
+		oc.ID_PAYMENT_FORM = pf.ID_PAYMENT_FORM
+	order by
+		oc.UPDATE_DATE DESC
+) as Last_Payment_Date,
+	(
+	SELECT
+		TOP 1 oc.COLLECTION_AMOUNT
+	FROM
+		GCCB_ONLINE_COLLECTION oc
+	WHERE
+		oc.ID_PAYMENT_FORM = pf.ID_PAYMENT_FORM
+	order by
+		oc.UPDATE_DATE DESC
+) as Last_Paid_Amount,
+	(
+	SELECT
+		SUM(gb.PENDING_AMOUNT)
+	FROM
+		GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON
+		cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	INNER JOIN gccom_sector_supply ss ON
+		ss.ID_SECTOR_SUPPLY = cs.ID_SECTOR_SUPPLY
+	WHERE
+		gb.id_payment_form = pf.ID_PAYMENT_FORM
+		AND ss.ID_SECTOR = 1
+		AND gb.COLLECTION_STATUS IS NOT NULL
+) as Outstanding_Electricity,
+	(
+	SELECT
+		SUM(gb.PENDING_AMOUNT)
+	FROM
+		GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON
+		cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	INNER JOIN gccom_sector_supply ss ON
+		ss.ID_SECTOR_SUPPLY = cs.ID_SECTOR_SUPPLY
+	WHERE
+		gb.id_payment_form = pf.ID_PAYMENT_FORM
+		AND ss.ID_SECTOR = 3
+		AND gb.COLLECTION_STATUS IS NOT NULL
+) as Outstanding_Water,
+	(
+	SELECT
+		SUM(gb.PENDING_AMOUNT)
+	FROM
+		GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON
+		cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	WHERE
+		gb.id_payment_form = pf.ID_PAYMENT_FORM
+		AND cs.ID_OFFERED_SERVICE = 176
+		AND gb.COLLECTION_STATUS IS NOT NULL
+) as Outstanding_Rent,
+	(
+	SELECT
+		SUM(gb.PENDING_AMOUNT)
+	FROM
+		GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON
+		cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	WHERE
+		gb.id_payment_form = pf.ID_PAYMENT_FORM
+		AND cs.ID_OFFERED_SERVICE = 10000000001
+		AND gb.COLLECTION_STATUS IS NOT NULL
+) as Outstanding_Rate,
+	(
+	SELECT
+		SUM(gb.PENDING_AMOUNT)
+	FROM
+		GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON
+		cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	WHERE
+		gb.id_payment_form = pf.ID_PAYMENT_FORM
+		AND gb.COLLECTION_STATUS IS NOT NULL
+) as Outstanding_Debt
+FROM
+	GCCOM_PAYMENT_FORM pf
+INNER join GCCOM_BILL bill ON
+	bill.id_payment_form = pf.ID_PAYMENT_FORM
+INNER JOIN GCCOM_PAYMENT_FORM_TYPE pft ON
+	pft.COD_DEVELOP = pf.COD_TYPE AND pft.IND_VIP = 1
+INNER JOIN GCCD_RELATIONSHIP rel ON
+	rel.id_relationship = pf.id_customer	
+WHERE (bill.BILLING_DATE BETWEEN '$P!{Date_From}' and '$P!{Date_To}')
