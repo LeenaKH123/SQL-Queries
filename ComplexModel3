@@ -1,0 +1,47 @@
+WITH t
+     AS (SELECT DISTINCT gb.id_bill
+           FROM gcgt_re_reading grr,
+                gccom_geographic_entity gge,
+                gccom_sector_supply gss,
+                gccom_supply gs,
+                gccom_address ga,
+                gccom_contracted_service gcs,
+                gccom_bill gb,
+                gccom_billing_service gbs,
+                gccom_readings_itemstobill gri,
+                gccom_items_to_bill gitb,
+                gccom_fare gf
+          WHERE     grr.id_sector_supply = gss.id_sector_supply
+                AND (grr.reading_type = '$P!{ReadingType}' OR '$P!{ReadingType}'= '-999' )
+                AND (grr.reading_date BETWEEN '$P!{Date_From}' AND '$P!{Date_To}')
+                AND gss.id_supply = gs.id_supply
+                AND gs.id_address = ga.id_address
+                AND (gss.id_sector = '$P!{Sector}' OR '$P!{Sector}'= '-999')
+                AND ga.id_geo_entity = gge.id_geo_entity
+                AND gge.entity_type = '30'
+                AND (gge.entity_name BETWEEN '$P!{BlockNoFrom}' AND '$P!{BlockNoTo}')
+                AND gge.id_geo_entity_p IN (SELECT id_geo_entity
+                                              FROM gccom_geographic_entity
+                                             WHERE     entity_type = 20
+                                                   AND (entity_name = '$P!{Governorate}' OR '$P!{Governorate}'= '-999')
+                                                          )
+                AND gss.id_sector_supply = gcs.id_sector_supply
+                AND gcs.id_contracted_service = gb.id_contracted_service
+                AND grr.id_reading = gri.id_reading
+                AND gri.id_item_to_bill = gitb.id_item_to_bill
+                AND gitb.id_bill = gb.id_bill
+                AND gcs.id_contracted_service = gbs.id_contracted_service
+                AND gbs.id_fare = gf.id_fare
+                AND (   0 = '$P!{Subsidized}'
+                     OR (    gcs.cod_exctariff IN ('EXCTARIF01', 'EXCTARIF02')
+                         AND gf.ind_subsidy = 1)))
+SELECT COUNT (gpf.id_payment_form) AS no_of_accounts,
+       SUM (gbu.usage) AS total_consumption,
+       AVG (gbu.usage) AS average_consumption
+  FROM t,
+       gccom_billed_usage gbu,
+       gccom_payment_form gpf,
+       gccom_bill gb
+ WHERE     t.id_bill = gbu.id_bill
+       AND t.id_bill = gb.id_bill
+       AND gb.id_payment_form = gpf.id_payment_form       
