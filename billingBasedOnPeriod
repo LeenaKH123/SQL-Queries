@@ -1,0 +1,63 @@
+WITH t
+     AS (SELECT goff.cod_office,
+                (SELECT COUNT (id_bill)
+                   FROM gccom_bill gbi
+                  WHERE     gbi.id_bill = gb.id_bill
+                        AND gb.billing_type IN ('TIPFAC0001', 'TIPFAC0004'))
+                   AS billed_bill,
+                (SELECT isnull (SUM (total_amount), 0)
+                   FROM gccom_bill gbi
+                  WHERE     gbi.id_bill = gb.id_bill
+                        AND gb.billing_type IN ('TIPFAC0001', 'TIPFAC0004'))
+                   AS bill_amount_billed,
+                (SELECT COUNT (DISTINCT gbi.id_bill)
+                   FROM gccom_bill gbi,
+                        gccb_online_collection goc,
+                        gccb_collection_notice_bill gcnb
+                  WHERE     gbi.id_bill = gb.id_bill
+                        AND gbi.id_bill = gcnb.id_bill
+                        AND gcnb.id_online_collection =
+                               goc.id_online_collection)
+                   AS collected_bill,
+                (SELECT ISNULL (SUM (gcnb.collection_amount), 0)
+                   FROM gccom_bill gbi,
+                        gccb_online_collection goc,
+                        gccb_collection_notice_bill gcnb
+                  WHERE     gbi.id_bill = gb.id_bill
+                        AND gbi.id_bill = gcnb.id_bill
+                        AND gcnb.id_online_collection =
+                               goc.id_online_collection)
+                   AS bill_amount_collection,
+                (SELECT isnull (SUM (pending_amount), 0)
+                   FROM gccom_bill gbi
+                  WHERE gbi.id_bill = gb.id_bill AND gbi.ind_unpaid = 1)
+                   AS bill_arrears,
+                (SELECT COUNT (id_bill)
+                   FROM gccom_bill gbi
+                  WHERE gbi.id_bill = gb.id_bill AND gbi.pending_amount > 0)
+                   AS due_bill,
+                gb.pending_amount AS bill_pending_amount
+           FROM gccom_payment_form gpf,
+                gccb_office goff,
+                gccom_contracted_service gcs,
+                gccom_bill gb
+          WHERE     gpf.id_office = goff.id_office
+                AND goff.cod_office IN ('CAPITAL_OFFICE',
+                                        'MUHARRAQ_OFFICE',
+                                        'NORTHERN_OFFICE',
+                                        'SOUTHERN_OFFICE',
+                                        'HEAD_OFFICE')
+                AND gpf.id_payment_form = gcs.id_payment_form
+                AND gcs.id_offered_service = 176
+                AND gcs.id_contracted_service = gb.id_contracted_service
+                AND format (gb.billing_date, 'MMyyyy') = '122021')
+  SELECT cod_office AS municipality_name,
+         SUM (billed_bill) AS count_billing,
+         SUM (bill_amount_billed) AS total_billing,
+         SUM (collected_bill) AS count_collectable,
+         SUM (bill_amount_collection) AS total_collectable,
+         SUM (bill_arrears) AS total_arrears,
+         SUM (due_bill) AS count_due,
+         SUM (bill_pending_amount) AS total_due
+    FROM t
+GROUP BY cod_office
