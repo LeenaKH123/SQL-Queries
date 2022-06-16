@@ -1,0 +1,45 @@
+with temporary_table as (
+select 
+OC1.COLLECTION_DATE as COLLECTION_DATE,
+OC1.COLLECTION_AMOUNT as suma
+from GCCB_ONLINE_COLLECTION as OC1
+INNER JOIN GCCB_SEEDBED_COLLECTION as SC ON SC.ID_SEEDBED = OC1.ID_SEEDBED
+INNER JOIN GCCB_COLLECTION_CENTER as CC ON CC.ID_COLLECTION_CENTER = SC.ID_COLLECTION_CENTER 
+where CC.COD_COLLECTION_CENTER = '10000000005'
+)
+SELECT 
+FORMAT ( OC.COLLECTION_DATE, 'MM' ) as Fecha,
+CASE 
+	when '$P!{Type}' = 'Count' then (select COUNT(COLLECTION_AMOUNT) from GCCB_ONLINE_COLLECTION where PAYMENT_SOURCE ='TIMOPA0001' )
+	when '$P!{Type}' = 'Amount in BD' then (select sum(COLLECTION_AMOUNT) from GCCB_ONLINE_COLLECTION where PAYMENT_SOURCE ='TIMOPA0001' )
+	else NULL
+END  as MEW_Cash_Offices_Cash,
+CASE 
+	when '$P!{Type}' = 'Count' then (select COUNT(COLLECTION_AMOUNT) from GCCB_ONLINE_COLLECTION where PAYMENT_SOURCE ='TIMOPA0003')
+	when '$P!{Type}' = 'Amount in BD' then (select sum(COLLECTION_AMOUNT) from GCCB_ONLINE_COLLECTION where PAYMENT_SOURCE ='TIMOPA0003')
+	else NULL
+END  as MEW_Cash_Offices_Card,
+CASE 
+	when '$P!{Type}' = 'Count' then (select COUNT(COLLECTION_AMOUNT) from GCCB_ONLINE_COLLECTION where PAYMENT_SOURCE in ('TIMOPA0017', 'TIMOPA0026'))
+	when '$P!{Type}' = 'Amount in BD' then (select sum(COLLECTION_AMOUNT) from GCCB_ONLINE_COLLECTION where PAYMENT_SOURCE in ('TIMOPA0017', 'TIMOPA0026')) 
+	else NULL
+END  as Banks,
+CASE 
+	when '$P!{Type}' = 'Count' then (select COUNT(COLLECTION_AMOUNT) from GCCB_ONLINE_COLLECTION where PAYMENT_SOURCE ='TIMOPA0005')
+	when '$P!{Type}' = 'Amount in BD' then (select sum(COLLECTION_AMOUNT) from GCCB_ONLINE_COLLECTION where PAYMENT_SOURCE ='TIMOPA0005') 
+	else NULL
+END  as Inter_M_Transfer,
+CASE 
+	when '$P!{Type}' = 'Count' then COUNT(COLLECTION_AMOUNT) 
+	when '$P!{Type}' = 'Amount in BD' then sum(COLLECTION_AMOUNT) 
+	else NULL
+END as Total,
+CASE 
+	when '$P!{Type}' = 'Count' then COUNT(suma) 
+	when '$P!{Type}' = 'Amount in BD' then sum(suma)
+	else  NULL
+END as E_Gov_Portal
+FROM GCCB_ONLINE_COLLECTION as OC LEFT JOIN temporary_table as TT ON OC.COLLECTION_DATE = TT.COLLECTION_DATE
+where (CAST (year(OC.COLLECTION_DATE) AS VARCHAR) = '$P!{Year}' OR '$P!{Year}'='-999' ) 
+GROUP BY FORMAT ( OC.COLLECTION_DATE, 'MM' )
+ORDER BY FORMAT ( OC.COLLECTION_DATE, 'MM' )
