@@ -1,0 +1,34 @@
+SELECT 
+	ru.description as reading_unit_name,
+	mpadd.address as measuring_point,
+	mpstat.name_type as mp_status,
+	ssupply.niss as sector_supply,
+	address.nas_code as address,
+	meter.serial_num as meter,
+	sector.name_type as sector	
+FROM
+	GCGT_RE_READING_UNIT ru 
+INNER JOIN
+	GCGT_RE_ROUTE_SET route on route.id_ru = ru.id_ru
+INNER JOIN
+	GCGT_RE_ROUTE_MASTER master on master.id_route_set = route.id_route_set
+RIGHT JOIN
+	GCGT_RE_MEASUREMENT_POINT mp on mp.id_route_master = master.id_route_master 
+INNER JOIN
+	GCGT_RE_MEASURE_POINT_STATUS mpstat on mpstat.cod_develop = mp.status
+INNER JOIN
+	GCGT_RE_MEASURING_POINT_DEVICE mpd on mpd.id_measuring_point = mp.id_measuring_point
+INNER JOIN
+	GCGT_ME_DEVICE meter on meter.id_device = mpd.id_device
+INNER JOIN
+	GCCOM_ADDRESS address on address.id_address = mp.id_address
+INNER JOIN
+	GCCOM_SECTOR_SUPPLY ssupply on ssupply.id_sector_supply = mp.id_sector_supply
+INNER JOIN
+	GCCOM_SUPPLY sup on sup.id_supply = ssupply.id_supply
+INNER JOIN
+	GCCOM_SECTOR sector on sector.id_sector = ssupply.id_sector
+INNER JOIN
+	GCCOM_ADDRESS mpadd on mpadd.id_address = sup.id_address 
+where
+	master.id_route_master IS NULL
