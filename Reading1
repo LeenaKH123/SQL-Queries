@@ -1,0 +1,62 @@
+SELECT	reru.DESCRIPTION		as ReadingUnit,
+		mpt.DESCRIPTION 		as MeasuringPointType,
+		mps.NAME_TYPE 			as MeasuringPointStatus,
+		addr.ADDRESS 			as MeasuringPointAddress,
+		pf.REFERENCE			as Account,
+		rers.COD_ROUTE_SET 		as Route,
+		rerm.ROUTE_DESC 		as Itinerary,
+		mp.READ_SEQUENCE 		as Sequence,
+		gs.NAME_TYPE 			as Sector,
+		dev.SERIAL_NUM 			as MeterSerialNumber,
+		per.DESCRIPTION 		as Periodicity,
+		mp.NEXT_READING 		as ScheduleDate,
+		mt.DESCRIPTION 			as ReadingMode,
+		spt.DESCRIPTION 		as Specialization,
+		rerm.ROUTE_DESC 		as Description,
+		mp.MP_ACCESS 			as Access,
+		mpd.INSTALLATION_DATE 	as InstallationDate,
+		re.READING_DATE 		as LastActualReadingDate
+FROM GCGT_RE_MEASUREMENT_POINT mp
+	LEFT OUTER JOIN GCGT_RE_ROUTE_MASTER rerm 
+		INNER JOIN GCGT_RE_ROUTE_SET rers 
+			INNER JOIN GCGT_RE_READING_UNIT reru ON rers.ID_RU = reru.ID_RU
+		ON rerm.ID_ROUTE_SET = rers.ID_ROUTE_SET
+	ON mp.ID_ROUTE_MASTER = rerm.ID_ROUTE_MASTER
+	INNER JOIN GCGT_RE_MP_TYPE mpt ON mp.MP_TYPE = mpt.COD_DEVELOP
+	INNER JOIN GCGT_RE_MEASURE_POINT_STATUS mps ON mp.STATUS = mps.COD_DEVELOP
+	INNER JOIN GCCOM_ADDRESS addr 
+		INNER JOIN  GCCOM_GEOGRAPHIC_ENTITY GE_BLOCK
+			INNER JOIN GCCOM_GEOGRAPHIC_ENTITY GE_GOV ON GE_GOV.ID_GEO_ENTITY = GE_BLOCK.ID_GEO_ENTITY_P
+		ON addr.ID_GEO_ENTITY = GE_BLOCK.ID_GEO_ENTITY
+	ON mp.ID_ADDRESS = addr.ID_ADDRESS
+	INNER JOIN GCCOM_SECTOR_SUPPLY ss 
+		INNER JOIN GCCOM_SECTOR gs ON ss.ID_SECTOR = gs.ID_SECTOR
+		LEFT OUTER JOIN (SELECT * FROM GCCOM_CONTRACTED_SERVICE WHERE STATUS = 'ESTSC00002') cs 
+			INNER JOIN GCCOM_PAYMENT_FORM pf ON cs.ID_PAYMENT_FORM = pf.ID_PAYMENT_FORM
+		ON ss.ID_SECTOR_SUPPLY = cs.ID_SECTOR_SUPPLY
+	ON mp.ID_SECTOR_SUPPLY = ss.ID_SECTOR_SUPPLY
+	LEFT OUTER JOIN GCGT_ME_DEVICE dev 
+		INNER JOIN GCGT_ME_USAGE_TYPE_METER utm 
+			INNER JOIN GCGT_RE_READING re ON utm.ID_LAST_READING = re.ID_READING
+		ON dev.ID_DEVICE = utm.ID_DEVICE
+		INNER JOIN GCGT_ME_DEVICE_MODEL devm
+			INNER JOIN GCGT_ME_DEVICE_MARK devma ON devma.ID_MARK = devm.ID_MARK
+		ON dev.ID_MODEL = devm.ID_MODEL
+	ON mp.ID_METER = dev.ID_DEVICE
+	LEFT OUTER JOIN GCGT_RE_MEASURING_POINT_DEVICE mpd ON mp.ID_MEASURING_POINT = mpd.ID_MEASURING_POINT and dev.ID_DEVICE =  mpd.ID_DEVICE
+	INNER JOIN GCGT_RE_MP_NATURE mpn 
+		INNER JOIN GCGT_RE_PERIODICITY per ON mpn.COD_PERIODICITY = per.COD_DEVELOP
+		INNER JOIN GCGT_RE_MODE_TYPE mt ON mpn.COD_MODO = mt.COD_DEVELOP
+		INNER JOIN GCGT_RE_SPECIALIZATION_TYPE spt ON mpn.COD_SPECIALIZATION = spt.COD_DEVELOP
+	ON mp.ID_MP_NATURE = mpn.ID_MP_NATURE
+where (CAST(rers.ID_ROUTE_SET AS VARCHAR) = '$P!{RouteR}' or '$P!{RouteR}' = '(All)')
+and (CAST(mp.NEXT_READING AS DATE) BETWEEN CAST(YEAR(GETDATE()) AS VARCHAR(4)) + '-' + CAST(MONTH(DATEADD(month, -1, GETDATE())) AS VARCHAR(2)) + '-20 00:00:00'
+ AND CAST(YEAR(GETDATE()) AS VARCHAR(4)) + '-' + CAST(MONTH(GETDATE()) AS VARCHAR(2)) + '-20 00:00:00')
+ and (CAST(GE_GOV.ID_GEO_ENTITY AS VARCHAR) ='$P!{GovernorateR}' or '$P!{GovernorateR}'= '(All)')
+ and (CAST(ss.ID_SECTOR AS VARCHAR) = '$P!{SectorR}' OR '$P!{SectorR}' = '(All)')
+and (CAST(reru.id_ru AS VARCHAR) = '$P!{ReadingUnit}' OR '$P!{ReadingUnit}'= '(All)')
+and (GE_BLOCK.ID_GEO_ENTITY = '$P!{BlockR}' OR '$P!{BlockR}' = '(All)')
+and (rerm.ROUTE_DESC = '$P!{ReadingItineraryR}' OR '$P!{ReadingItineraryR}' = '(All)')
+and (mpn.COD_MODO = '$P!{ReadingMode}' OR '$P!{ReadingMode}'= '(All)')
+and (spt.DESCRIPTION = '$P!{ReadingSpecialisation}' OR '$P!{ReadingSpecialisation}' = '(All)')
+and (CAST(devma.ID_MARK AS VARCHAR) = '$P!{ReadingMeterBrand}' OR '$P!{ReadingMeterBrand}' = '(All)')
