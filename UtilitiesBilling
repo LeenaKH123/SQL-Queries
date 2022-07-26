@@ -1,0 +1,112 @@
+	select pf.REFERENCE as account, cs.ID_PAYMENT_FORM,
+        cs.FROM_DATE as setup_date,
+        cs.END_DATE as  termination_Date,
+        IIF(CSS.COD_DEVELOP in ('ESTSC00003','ESTSC00004','ESTSC00005','ESTSC00007'),'Inactive','Active')  as status,
+        (ADDR.ADDRESS + ',' + GE10.ENTITY_NAME) as address,
+        ADDR.NAS_CODE as NAS_CODE,
+        rel.surname_1 + ' ' + rel.surname_2 + ', ' + rel.CUSTOMER_NAME as CUSTOMER_NAME,
+        PFT.description as signal,
+        gp.reference AS BulkAccount,
+        pf.description AS Account_Description,
+        		 IsNull((SELECT SUM(B.PENDING_AMOUNT) 
+		           FROM GCCOM_BILL B 
+				  WHERE B.ID_PAYMENT_FORM = PF.ID_PAYMENT_FORM
+                    AND B.BILLING_STATUS IS NOT  NULL AND B.COLLECTION_STATUS IS NOT NULL
+                    AND B.BILLING_STATUS    IN (SELECT BILL_STATUS FROM GCCOM_BILLSTS_GROUP_DEF_TYPE WHERE COD_GROUP = '1401BGRTYP')
+                    AND B.COLLECTION_STATUS IN (SELECT BILL_STATUS FROM GCCOM_BILLSTS_GROUP_DEF_TYPE WHERE COD_GROUP = '1406BGRTYP')
+                    AND B.PENDING_AMOUNT > 0
+					AND B.ID_OFFERED_SERVICE = 1),
+	        0) AS electricity_amount,
+	        	 IsNull((SELECT SUM(B.PENDING_AMOUNT) 
+		           FROM GCCOM_BILL B 
+				  WHERE B.ID_PAYMENT_FORM = PF.ID_PAYMENT_FORM
+                    AND B.BILLING_STATUS IS NOT  NULL AND B.COLLECTION_STATUS IS NOT NULL
+                    AND B.BILLING_STATUS    IN (SELECT BILL_STATUS FROM GCCOM_BILLSTS_GROUP_DEF_TYPE WHERE COD_GROUP = '1401BGRTYP')
+                    AND B.COLLECTION_STATUS IN (SELECT BILL_STATUS FROM GCCOM_BILLSTS_GROUP_DEF_TYPE WHERE COD_GROUP = '1406BGRTYP')
+                    AND B.PENDING_AMOUNT > 0
+					AND B.ID_OFFERED_SERVICE = 19),
+	        0) AS water_amount,
+	        IsNull(pf.AMORTIZATION_RATE,0) as rate_amount,
+	        			IsNull((SELECT SUM(B.PENDING_AMOUNT) 
+		           FROM GCCOM_BILL B 
+				  WHERE B.ID_PAYMENT_FORM = PF.ID_PAYMENT_FORM
+                    AND B.BILLING_STATUS IS NOT  NULL AND B.COLLECTION_STATUS IS NOT NULL
+                    AND B.BILLING_STATUS    IN (SELECT BILL_STATUS FROM GCCOM_BILLSTS_GROUP_DEF_TYPE WHERE COD_GROUP = '1401BGRTYP')
+                    AND B.COLLECTION_STATUS IN (SELECT BILL_STATUS FROM GCCOM_BILLSTS_GROUP_DEF_TYPE WHERE COD_GROUP = '1406BGRTYP')
+                    AND B.PENDING_AMOUNT > 0
+					AND B.ID_OFFERED_SERVICE in (1,19)),
+	        0) + IsNull(pf.AMORTIZATION_RATE,0) AS total_amount,
+	        		(SELECT  max(cnb.payment_date)
+		           FROM GCCOM_BILL B inner join GCCB_COLLECTION_NOTICE_BILL CNB on (cnb.id_bill = b.id_bill)
+				  WHERE B.ID_PAYMENT_FORM = PF.ID_PAYMENT_FORM
+                    AND B.BILLING_STATUS IS NOT  NULL AND B.COLLECTION_STATUS IS NOT NULL
+					AND B.ID_OFFERED_SERVICE in (1,19)) as last_payment_date,
+								(select top 1 cnb.collection_amount 
+			  from (select payment_date, sum(collection_amount) as collection_amount 
+			          from gccb_collection_notice_bill cnb
+					  inner join gccom_bill b on (cnb.id_bill = b.id_bill) 
+					  inner join gccom_payment_form f on (f.id_payment_form = b.id_payment_form)
+					 where f.REFERENCE =  pf.reference
+					 group by cnb.PAYMENT_DATE) cnb 
+					 order by cnb.payment_date desc) as last_payment_amount,
+					 (select top 1 'DDI' FROM GCCOM_PAYMENT_FORM PF1, GCCOM_COLLECTION_BY_ACCOUNT CBA
+					                                    WHERE PF1.COLLECTION_FORM_TYPE = 'MOCOB00001' 
+														AND PF1.ID_PAYMENT_FORM = PF.ID_PAYMENT_FORM
+														AND PF1.ID_COLL_BY_ACCOUNT = CBA.ID_COLL_BY_ACCOUNT
+														ORDER BY PF1.NEXT_PAY_ACC_DATE DESC
+													 ) as DDI,
+				    (select top 1 'PDC' FROM GCCOM_PAYMENT_FORM PF1, GCCOM_COLLECTION_BY_ACCOUNT CBA
+					                                    WHERE PF1.COLLECTION_FORM_TYPE = 'MOCOB00002' 
+														AND PF1.ID_PAYMENT_FORM = PF.ID_PAYMENT_FORM
+														AND PF1.ID_COLL_BY_ACCOUNT = CBA.ID_COLL_BY_ACCOUNT
+														ORDER BY PF1.NEXT_PAY_ACC_DATE DESC
+													 ) as PDC,
+						 (select sgt.NAME_TYPE 
+					    from GCCOM_SECTOR_SUPPLY ss 
+						inner join GCCOM_CONTRACTED_SERVICE cs1 on (ss.ID_SECTOR_SUPPLY = cs1.ID_CONTRACTED_SERVICE)
+						inner join GCCOM_SEGMENT_GROUP_TYPE SGT on ( sgt.COD_DEVELOP = ss.COD_GROUP_SEGMENT)
+						where cs1.ID_OFFERED_SERVICE = 1
+						and cs1.ID_CONTRACTED_SERVICE = cs.ID_CONTRACTED_SERVICE) as electricity_segment,
+							(select sgt.NAME_TYPE 
+					    from GCCOM_SECTOR_SUPPLY ss 
+						inner join GCCOM_CONTRACTED_SERVICE cs1 on (ss.ID_SECTOR_SUPPLY = cs1.ID_CONTRACTED_SERVICE)
+						inner join GCCOM_SEGMENT_GROUP_TYPE SGT on ( sgt.COD_DEVELOP = ss.COD_GROUP_SEGMENT)
+						where cs1.ID_OFFERED_SERVICE = 19
+						and cs1.ID_CONTRACTED_SERVICE = cs.ID_CONTRACTED_SERVICE) as water_segment,
+						(select top 1 rr.VALUE
+						from GCCOM_CONTRACTED_SERVICE cs1 
+						inner join GCGT_RE_MEASUREMENT_POINT RMP on (RMP.ID_SECTOR_SUPPLY = cs1.ID_SECTOR_SUPPLY)
+						inner join GCGT_RE_READING RR on (RR.ID_MEASURING_POINT = RMP.ID_MEASURING_POINT)
+						where cs1.ID_OFFERED_SERVICE = 1
+						and cs1.ID_CONTRACTED_SERVICE = cs.ID_CONTRACTED_SERVICE
+						and RR.ID_READING = (select max(RR1.ID_READING) from GCGT_RE_READING RR1 where RR1.ID_MEASURING_POINT = rr.ID_MEASURING_POINT)
+						and rr.VALUE is not null
+						order by rr.ID_READING desc) as electricity_reading,
+						(select top 1 rr.VALUE from GCCOM_CONTRACTED_SERVICE cs1 
+						inner join GCGT_RE_MEASUREMENT_POINT RMP on (RMP.ID_SECTOR_SUPPLY = cs1.ID_SECTOR_SUPPLY)
+						inner join GCGT_RE_READING RR on (RR.ID_MEASURING_POINT = RMP.ID_MEASURING_POINT)
+						where cs1.ID_OFFERED_SERVICE = 19
+						and cs1.ID_CONTRACTED_SERVICE = cs.ID_CONTRACTED_SERVICE
+						and RR.ID_READING = (select max(RR1.ID_READING) from GCGT_RE_READING RR1 where RR1.ID_MEASURING_POINT = rr.ID_MEASURING_POINT)
+						and rr.VALUE is not null
+						order by rr.ID_READING desc) as water_reading,
+						(select b.BILLING_DATE from gccom_bill b where b.ID_OFFERED_SERVICE in (1,19) and b.ID_CONTRACTED_SERVICE = cs.id_contracted_service and b.id_bill = (select max(b1.ID_BILL) from gccom_bill b1 where b1.ID_CONTRACTED_SERVICE =b.ID_CONTRACTED_SERVICE)) as last_bill_date,
+						(select b.TOTAL_AMOUNT from gccom_bill b where b.ID_OFFERED_SERVICE in (1,19) and b.ID_CONTRACTED_SERVICE = cs.id_contracted_service and b.id_bill = (select max(b1.ID_BILL) from gccom_bill b1 where b1.ID_CONTRACTED_SERVICE =b.ID_CONTRACTED_SERVICE)) as last_bill_amount,
+						(select sum(d.calc_amount) from GCCB_DEPOSIT d where d.ID_CONTRACTED_SERVICE = cs.ID_CONTRACTED_SERVICE and d.ID_PAYMENT_FORM = pf.ID_PAYMENT_FORM and d.ID_SECTOR_SUPPLY =  cs.ID_SECTOR_SUPPLY) as deopsit_amount
+				
+	        
+        
+from GCCOM_PAYMENT_FORM pf
+full join GCCOM_CONTRACTED_SERVICE CS on (cs.ID_PAYMENT_FORM = pf.ID_PAYMENT_FORM and cs.ID_OFFERED_SERVICE in (1,19))
+full join GCCOM_CONTRACT_SERV_STATUS CSS on CSS.COD_DEVELOP = CS.status
+full join GCCD_RELATIONSHIP rel on pf.ID_CUSTOMER = rel.ID_RELATIONSHIP 
+full join GCCOM_ADDRESS ADDR on rel.ID_ADDRESS = ADDR.ID_ADDRESS 
+full join GCCOM_GEOGRAPHIC_ENTITY GE30 on ADDR.ID_GEO_ENTITY = GE30.ID_GEO_ENTITY 
+full join GCCOM_GEOGRAPHIC_ENTITY GE20 on GE20.ID_GEO_ENTITY = GE30.ID_GEO_ENTITY_P 
+full join GCCOM_GEOGRAPHIC_ENTITY GE10 on GE10.ID_GEO_ENTITY = GE20.ID_GEO_ENTITY_P 
+full join GCCOM_PAYMENT_FORM_TYPE pft on pft.COD_DEVELOP = pf.COD_TYPE 
+full join GCCOM_COLLECTION_FORM_TYPE CFT on (CFT.COD_DEVELOP = pf.collection_form_type)
+full join GCCOM_PAYMENT_FORM gp on gp.ID_PAYMENT_FORM = CS.ID_PAYMENT_FORM
+full join GCCOM_ACCOUNT_BUNCHER ga on ga.ID_PAYMENT_FORM = gp.ID_PAYMENT_FORM
+where (gp.IND_BUNCHER is not null)
+AND (rel.doc_number = '$P!{BillingCPR}' or '$P!{BillingCPR}' = '-999')
