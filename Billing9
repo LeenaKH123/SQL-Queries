@@ -1,0 +1,129 @@
+WITH geoEntitiesP (level, ID_GEO_ENTITY, ID_GEO_ENTITY_P, ENTITY_TYPE, ENTITY_NAME, concatenador, idConcatenador) AS 
+(
+	SELECT  1, ID_GEO_ENTITY, ID_GEO_ENTITY_P, ENTITY_TYPE, ENTITY_NAME,
+	CONVERT(NVARCHAR (MAX), ENTITY_NAME) as concatenador,
+	CONVERT(NVARCHAR (MAX), ID_GEO_ENTITY) as idConcatenador
+    FROM gccom_geographic_entity
+    WHERE id_geo_entity_p is null
+        UNION ALL
+    SELECT level + 1,geoEntities.ID_GEO_ENTITY, geoEntities.ID_GEO_ENTITY_P, geoEntities.ENTITY_TYPE, geoEntities.ENTITY_NAME, 
+	geoEntitiesP.concatenador + ':'+ CONVERT(NVARCHAR (MAX), geoEntities.ENTITY_NAME) as concatenador,
+	geoEntitiesP.idConcatenador + ':'+ CONVERT(NVARCHAR (MAX), geoEntities.ID_GEO_ENTITY) as idConcatenador
+    FROM gccom_geographic_entity as geoEntities, geoEntitiesP
+    WHERE geoEntitiesP.id_geo_entity = geoEntities.id_geo_entity_p
+),
+BI AS
+(
+SELECT
+  BI.ID_BILL,
+  BI.BILL_NUMBER,
+  BI.BILL_TYPE,
+  BI.BILLING_TYPE,
+  BI.TOTAL_AMOUNT_BCURR,
+  BI.id_currency,
+  ID_BILLING_PERIOD,
+  BI.COLLECTION_STATUS,
+  BI.BILLING_STATUS,
+  BI.ID_PAYMENT_FORM,
+  BI.ID_CONTRACTED_SERVICE,
+  BI.ID_OFFERED_SERVICE
+FROM
+  gccom_bill bi
+		LEFT JOIN GCCOM_BILL_STATUS CS1   			ON BI.COLLECTION_STATUS=CS1.COD_DEVELOP
+		LEFT JOIN GCCOM_BILLSTS_GROUP_DEF_TYPE CGT    			ON (CS1.COD_DEVELOP=CGT.BILL_STATUS   AND CGT.COD_GROUP  = '1502BGGTYP')
+		LEFT JOIN GCCOM_BILL_STATUS BS    			ON BI.BILLING_STATUS=BS.COD_DEVELOP 
+		LEFT JOIN GCCOM_BILLSTS_GROUP_DEF_TYPE BGT   ON (BS.COD_DEVELOP    =BGT.BILL_STATUS  AND BGT.COD_GROUP     = '1501BGGTYP')
+WHERE
+  1 = 1
+)
+SELECT DISTINCT bc.id_billing_concept,
+		case oao.LEVEL_NUM  when 4 then org4.id_org_1   when 3 then org3.id_org_1  when 2 then org2.id_org_1  when 1 then org1.id_org_1 else 9 end        as PAR_nivel_org_1,  
+	    case oao.LEVEL_NUM  when 4 then org4.cod_org_1  when 3 then org3.cod_org_1 when 2 then org2.cod_org_1 when 1 then org1.cod_org_1 else null end    as nivel_org_1,   
+	    case oao.LEVEL_NUM  when 4 then org4.id_org_2   when 3 then org3.id_org_2  when 2 then org2.id_org_2  when 1 then org1.id_org_2 else 9 end        as par_nivel_org_2,  
+	    case oao.LEVEL_NUM  when 4 then org4.cod_org_2  when 3 then org3.cod_org_2 when 2 then org2.cod_org_2 when 1 then org1.cod_org_2 else null end    as nivel_org_2,  
+	    case oao.LEVEL_NUM  when 4 then org4.id_org_3   when 3 then org3.id_org_3  when 2 then org2.id_org_3  when 1 then org1.id_org_3 else 9 end        as par_nivel_org_3,  
+   	    case oao.LEVEL_NUM  when 4 then org4.cod_org_3  when 3 then org3.cod_org_3  when 2 then org2.cod_org_3  when 1 then org1.cod_org_3 else null end as nivel_org_3,  
+	    case oao.LEVEL_NUM  when 4 then org4.id_org_4   when 3 then org3.id_org_4  when 2 then org2.id_org_4  when 1 then org1.id_org_4 else 9 end        as par_nivel_org_4, 
+	    case oao.LEVEL_NUM  when 4 then org4.cod_org_4  when 3 then org3.cod_org_4  when 2 then org2.cod_org_4  when 1 then org1.cod_org_4 else null end  as nivel_org_4,   
+		offi2.id_office                  as id_bussiness_unit,
+        offi2.office_name                as bussiness_unit,
+        offi.id_office                   as id_commercial_office,
+        offi.office_name 			     as commercial_office,
+		bP.ID_BILLING_PERIOD             as ID_BILLING_PERIOD, 
+		BP.PERIOD_NAME                   as BILLING_PERIOD, 
+		REL.DOC_NUMBER                   AS NIF, 
+		REL.FULL_NAME                    AS CLIENTE,
+		PF.REFERENCE                     AS CUENTA, 
+		GCCB_NOTICE.NOTICE_NUMBER        AS NUMERO_RECIBO,
+		BI.BILL_NUMBER                   AS NUMERO_FACTURA,
+		CM.COD_DEVELOP                   AS ID_CONCEPTO, 
+		OUC_REPORT.I18N_JASPER('$P!{Language}',  CM.DESCRIPTION_XI18N, CM.DESCRIPTION) AS CONCEPTO, 
+		BC.FROM_DATE                          AS FECHA_DESDE,
+		BC.TO_DATE                            AS FECHA_HASTA,
+		BI.BILL_TYPE                    as id_bill_type,
+		BI.BILLING_TYPE                 as id_BILLING_TYPE ,
+		OUC_REPORT.I18N_JASPER('$P!{Language}', GCCOM_GENERABLE_BILL_TYPE.NAME_TYPE_XI18N,GCCOM_GENERABLE_BILL_TYPE.NAME_TYPE) AS TIPO_FACTURA , 
+		OUC_REPORT.I18N_JASPER('$P!{Language}', COSE.NAME_TYPE_XI18N,COSE.NAME_TYPE) AS SERVICIO ,
+		OUC_REPORT.I18N_JASPER('$P!{Language}', GCCOM_BILLING_TYPE.NAME_TYPE_XI18N,GCCOM_BILLING_TYPE.NAME_TYPE) AS TIPO_FACTURACION ,
+		OUC_REPORT.I18N_JASPER('$P!{Language}', B.NAME_TYPE_XI18N,B.NAME_TYPE)  ESTADO_FACTURACION, bi.BILLING_STATUS,
+	    OUC_REPORT.I18N_JASPER('$P!{Language}', A.NAME_TYPE_XI18N, A.NAME_TYPE) ESTADO_COBRO, a.COD_DEVELOP,
+		GCCB_NOTICE.DISPATCH_COLL_DATE                   AS  FECHA_PUESTA_COBRO , 
+		GCCB_NOTICE.OVERDUE_DATE                         AS  FECHA_VENCIMIENTO , 
+		coalesce(BC.CONCEPT_AMOUNT, 0)                   AS  IMPORTE, 
+	    cur.iso_code                                     as iso_code_currency,
+        cur.iso_number                                   as iso_number_currency,
+        BC.CONCEPT_AMOUNT_BCURR	      AS TOTAL_AMOUNT_BASE_CURR,
+		( SELECT ISO_CODE FROM GCCOM_CURRENCY WHERE IND_BASE = 1 )
+			       AS ISO_CODE_BASE_CUR,
+	    ( SELECT ISO_CODE  FROM gccom_currency  WHERE IND_BASE=1)  AS iso_number_base_cur,
+	    offi.OFFICE_NAME AS OFICINA_SUMINISTRO,
+		AD.ADDRESS DIRECCION_SUMINISTRO,
+		SUBSTRING(concatenador, 0, CHARINDEX( ':', concatenador)) AS NIVEL_GEO_1,
+replace (SUBSTRING(concatenador, CHARINDEX( ':', concatenador ), CHARINDEX( ':', concatenador, CHARINDEX( ':', concatenador ) + 1 ) - CHARINDEX( ':', concatenador )), ':', '') as NIVEL_GEO_2,
+replace (SUBSTRING(concatenador, CHARINDEX( ':', concatenador, CHARINDEX( ':', concatenador ) + 1 ), CHARINDEX( ':', concatenador, CHARINDEX( ':', concatenador, CHARINDEX( ':', concatenador ) + 1 ) + 1 )-CHARINDEX( ':', concatenador, CHARINDEX( ':', concatenador ) + 1 )), ':', '') as NIVEL_GEO_3,
+replace (SUBSTRING(concatenador, CHARINDEX( ':', concatenador, CHARINDEX( ':', concatenador, CHARINDEX( ':', concatenador ) + 1 ) + 1 ), len (concatenador) + 1 -CHARINDEX( ':', concatenador, CHARINDEX( ':', concatenador, CHARINDEX( ':', concatenador ) + 1 ) + 1 )), ':', '') as NIVEL_GEO_4,
+SUBSTRING(idConcatenador, 0, CHARINDEX( ':', idConcatenador)) AS PAR_NIVEL_GEO_1,
+replace (SUBSTRING(idConcatenador, CHARINDEX( ':', idConcatenador ), CHARINDEX( ':', idConcatenador, CHARINDEX( ':', idConcatenador ) + 1 ) - CHARINDEX( ':', idConcatenador )), ':', '') as PAR_NIVEL_GEO_2,
+replace (SUBSTRING(idConcatenador, CHARINDEX( ':', idConcatenador, CHARINDEX( ':', idConcatenador ) + 1 ), CHARINDEX( ':', idConcatenador, CHARINDEX( ':', idConcatenador, CHARINDEX( ':', idConcatenador ) + 1 ) + 1 )-CHARINDEX( ':', idConcatenador, CHARINDEX( ':', idConcatenador ) + 1 )), ':', '') as PAR_NIVEL_GEO_3,
+replace (SUBSTRING(idConcatenador, CHARINDEX( ':', idConcatenador, CHARINDEX( ':', idConcatenador, CHARINDEX( ':', idConcatenador ) + 1 ) + 1 ), len (idConcatenador) + 1 -CHARINDEX( ':', idConcatenador, CHARINDEX( ':', idConcatenador, CHARINDEX( ':', idConcatenador ) + 1 ) + 1 )), ':', '') as PAR_NIVEL_GEO_4
+	FROM BI
+	    LEFT JOIN GCCOM_CONTRACTED_SERVICE CS            ON  BI.ID_contracted_service= CS.ID_contracted_service  
+		JOIN GCCOM_COMPANY_OFFERED_SERVICE 	COSE ON bi.ID_OFFERED_SERVICE = COSE.ID_OFFERED_SERVICE
+		join gccom_contract gco on gco.id_contract =cs.id_contract   
+	    join gccom_currency cur                 on cur.id_currency =BI.id_currency
+		LEFT JOIN GCCB_NOTICE_BILL   			ON GCCB_NOTICE_BILL.ID_BILL=BI.ID_BILL 		
+		LEFT JOIN GCCOM_BILLING_PERIOD   BP     ON BI.ID_BILLING_PERIOD=BP.ID_BILLING_PERIOD
+		LEFT JOIN GCCB_NOTICE           		ON GCCB_NOTICE.ID_NOTICE = GCCB_NOTICE_BILL.ID_NOTICE 		
+		LEFT JOIN GCCOM_GENERABLE_BILL_TYPE     ON BI.BILL_TYPE = GCCOM_GENERABLE_BILL_TYPE.COD_DEVELOP
+		LEFT JOIN GCCOM_BILLING_TYPE            ON BI.BILLING_TYPE = GCCOM_BILLING_TYPE.COD_DEVELOP
+		LEFT JOIN GCCOM_BILL_STATUS A         	ON BI.COLLECTION_STATUS = A.COD_DEVELOP
+		LEFT JOIN GCCOM_BILL_STATUS B         	ON BI.BILLING_STATUS = B.COD_DEVELOP
+		LEFT JOIN GCCOM_PAYMENT_FORM PF       	ON PF.ID_PAYMENT_FORM = BI.ID_PAYMENT_FORM
+		LEFT JOIN GCCD_RELATIONSHIP REL       	ON  convert(varchar(20),PF.ID_CUSTOMER) = REL.COD_CUSTOMER
+		LEFT JOIN GCCOM_RECL_REBILLED_BILL REBILL    ON BI.ID_BILL = REBILL.id_reclaimed_bill 
+		LEFT JOIN GCCOM_SECTOR_SUPPLY SS            ON CS.ID_SECTOR_SUPPLY= SS.ID_SECTOR_SUPPLY 
+		LEFT JOIN GCCOM_SUPPLY S        		     ON SS.ID_SUPPLY= S.ID_SUPPLY
+		LEFT JOIN GCCOM_ADDRESS AD      		        ON gco.ID_ADDRESS = AD.ID_ADDRESS
+		LEFT JOIN GCCB_OFFICE OFFI 			           ON OFFI.ID_OFFICE =CS.OFFICE_CONTRACT
+		LEFT JOIN geoEntitiesP ON geoEntitiesP.ID_GEO_ENTITY = AD.ID_GEO_ENTITY
+		LEFT JOIN GCCB_NOTICE_STATUS NS   			    ON GCCB_NOTICE.COD_NOTICE_STATUS = NS.COD_DEVELOP
+		LEFT JOIN GCCOM_ANOMALOUS AN    			ON AN.ID_BILL = BI.ID_BILL
+		LEFT JOIN GCCOM_BILLING_CONCEPT BC    			ON BI.ID_BILL = BC.ID_BILL
+		LEFT JOIN GCCOM_CONCEPTS_MASTER CM    			ON CM.COD_DEVELOP=BC.COD_CONCEPT
+        left join gccb_office offi2            on (cs.id_office = offi2.id_office and offi2.ind_bussiness_unit=1)
+		left join (SELECT O.ID_OFFICE, O.OFFICE_NAME , OA.LEVEL_NUM, OA.ID_ORGANIZATIONAL_AREA
+	FROM GCCB_OFFICE O 
+	JOIN  gccom_organizational_area  OA ON OA.ID_ORGANIZATIONAL_AREA=O.ID_ORGANIZATIONAL_AREA
+	WHERE  O.IND_BUSSINESS_UNIT= 1)    oao on oao.ID_OFFICE=OFFI2.ID_OFFICE
+		left join ( select level_num, id_org_1,	cod_org_1	,id_org_2,	cod_org_2	,id_org_3,	cod_org_3,	id_org_4	,cod_org_4 from OUC_REPORT.VM_LKP_ORG_AREA_final ) org1 on  org1.id_org_1=oao.id_organizational_area AND ORG1.LEVEL_NUM=oao.LEVEL_NUM
+        left join ( select level_num, id_org_1,	cod_org_1	,id_org_2,	cod_org_2	,id_org_3,	cod_org_3,	id_org_4	,cod_org_4 from OUC_REPORT.VM_LKP_ORG_AREA_final ) org2 on  org2.id_org_2=oao.id_organizational_area AND ORG2.LEVEL_NUM=oao.LEVEL_NUM
+        left join ( select level_num, id_org_1,	cod_org_1	,id_org_2,	cod_org_2	,id_org_3,	cod_org_3,	id_org_4	,cod_org_4 from OUC_REPORT.VM_LKP_ORG_AREA_final ) org3 on  org3.id_org_3=oao.id_organizational_area  AND ORG3.LEVEL_NUM=oao.LEVEL_NUM
+        left join ( select level_num, id_org_1,	cod_org_1	,id_org_2,	cod_org_2	,id_org_3,	cod_org_3,	id_org_4	,cod_org_4 from OUC_REPORT.VM_LKP_ORG_AREA_final ) org4  on  org4.id_org_4=oao.id_organizational_area  AND ORG4.LEVEL_NUM=oao.LEVEL_NUM
+        where
+    	( '$P!{ORG_TERRITORIO}' = '-999' OR (case oao.LEVEL_NUM  when 4 then org4.id_org_1   when 3 then org3.id_org_1  when 2 then org2.id_org_1  when 1 then org1.id_org_1 else 9 end)= '$P!{ORG_TERRITORIO}') AND
+			('$P!{ORG_REGION}' = '-999' OR (case oao.LEVEL_NUM  when 4 then org4.id_org_2   when 3 then org3.id_org_2  when 2 then org2.id_org_2  when 1 then org1.id_org_2 else 9 end) = '$P!{ORG_REGION}') AND 
+			('$P!{UNIDAD_NEGOCIO}' = '-999' OR offi2.id_office = '$P!{UNIDAD_NEGOCIO}') AND 
+			('$P!{PERIODO_FACTURACION}' = '-999' OR bP.ID_BILLING_PERIOD = '$P!{PERIODO_FACTURACION}') AND 
+			('$P!{TIPO_FACTURA}' = '-999' OR BI.BILL_TYPE = '$P!{TIPO_FACTURA}') AND 
+			('$P!{TIPO_FACTURACION}' = '-999' OR BI.BILLING_TYPE = '$P!{TIPO_FACTURACION}') AND 
+			('$P!{CONCEPTO}' = '-999' OR BC.COD_CONCEPT = '$P!{CONCEPTO}')
