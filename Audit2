@@ -1,0 +1,16 @@
+SELECT 
+cbn.NOTICE_NUMBER as invoice_number,
+pf.REFERENCE as account,
+bill.dispatch_coll_date as invoice_date,
+cbn.TOTAL_AMOUNT as amount,
+GBT.NAME_TYPE as misc_type
+FROM gccom_payment_form pf	
+INNER JOIN GCCOM_PAYMENT_FORM_TYPE pft on pft.cod_develop = pf.COD_TYPE
+INNER JOIN GCCB_NOTICE cbn on cbn.ID_PAYMENT_FORM = pf.ID_PAYMENT_FORM
+INNER JOIN GCCB_NOTICE_BILL NB on (NB.ID_NOTICE = CBN.ID_NOTICE)
+INNER JOIN GCCOM_BILL bill on (bill.ID_BILL = NB.ID_BILL) 
+INNER JOIN GCCOM_GENERABLE_BILL_TYPE GBT on (GBT.COD_DEVELOP = bill.BILL_TYPE)
+WHERE ($X{IN, pft.DESCRIPTION, COD_TYPE} )
+AND   ($X{IN, gbt.NAME_TYPE, BILL_TYPE} )
+AND   (gbt.COD_DEVELOP IN ('TFGEN10001', 'TFGEN10002'))
+AND          (bill.dispatch_coll_date BETWEEN '$P!{Date_From}' AND '$P!{Date_To}')
