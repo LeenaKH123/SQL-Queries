@@ -1,0 +1,47 @@
+select n.REFERENCE as account_number,
+c.FULL_NAME as customer_name,
+cad.NAS_CODE as customer_nas_code,
+(select doc_number from GCCD_RELATIONSHIP_DOCUMENT where doc_type = '10000CUSDO' and EXPEDITION_COUNTRY = '0001ISSAUT' and ID_RELATIONSHIP = c.id_relationship) as customer_cpr,
+nac.NAME_TYPE as customer_nationality,
+(select DISTINCT pt.NAME_TYPE
+from gccb_notice_bill nb
+inner join gccom_bill b on b.id_bill = nb.ID_BILL
+inner join gccom_contracted_service cs on b.ID_CONTRACTED_SERVICE = cs.ID_CONTRACTed_service
+inner join gccom_sector_supply ss on cs.ID_SECTOR_SUPPLY = ss.ID_SECTOR_SUPPLY
+inner join gccom_supply su on ss.ID_SUPPLY = su.ID_SUPPLY
+inner join GCCOM_PLACE_TYPE pt on pt.COD_DEVELOP = su.PLACE_TYPE
+where nb.id_notice = n.ID_NOTICE) as property_type,
+n.SEND_DATE as bill_date,
+n.pending_AMOUNT as bill_amount,
+'GUARANTOR PENDING' as guarantor,
+(select DISTINCT pf.reference
+from gccb_notice_bill nb
+inner join gccom_bill b on b.id_bill = nb.ID_BILL
+inner join gccom_contracted_service cs on b.ID_CONTRACTED_SERVICE = cs.id_contracted_service
+inner join GCCOM_CONTRACTED_SERVICE ccs on ccs.ID_SECTOR_SUPPLY = cs.id_sector_supply and cs.status in ('ESTSC00001')
+inner join GCCOM_PAYMENT_FORM pf on pf.ID_PAYMENT_FORM = ccs.ID_PAYMENT_FORM
+where nb.id_notice = n.id_notice) as current_account,
+(select sum(b.pending_amount) from gccom_bill b inner join gccb_notice_bill nb on b.id_bill = nb.id_bill inner join gccom_contracted_service cs on cs.id_contracted_service = b.id_contracted_service where nb.id_notice = n.id_notice
+ and b.ID_OFFERED_SERVICE = 1 and b.COLLECTION_STATUS = 'ESTFAC0005' and b.bill_type = 'TFGEN00001'
+ and b.billing_type = 'TIPFAC0004' and cs.status = 'ESTSC00003'
+ ) as elec_amount,
+ (select sum(b.pending_amount) from gccom_bill b inner join gccb_notice_bill nb on b.id_bill = nb.id_bill inner join gccom_contracted_service cs on cs.id_contracted_service = b.id_contracted_service where nb.id_notice = n.id_notice
+ and b.ID_OFFERED_SERVICE = 19 and b.COLLECTION_STATUS = 'ESTFAC0005' and b.bill_type = 'TFGEN00001'
+ and b.billing_type = 'TIPFAC0004' and cs.status = 'ESTSC00003'
+ ) as water_amount,
+ (select sum(b.pending_amount) from gccom_bill b inner join gccb_notice_bill nb on b.id_bill = nb.id_bill inner join gccom_contracted_service cs on cs.id_contracted_service = b.id_contracted_service where nb.id_notice = n.id_notice
+ and b.ID_OFFERED_SERVICE = 176 and b.COLLECTION_STATUS = 'ESTFAC0005' and b.bill_type = 'TFGEN00001'
+ and b.billing_type = 'TIPFAC0004' and cs.status = 'ESTSC00003'
+ ) as rate_amount,
+-1 as refund_amount,
+'DDLPDC PENDING' as ddlpdc,
+cft.name_type as ddi_status
+from GCCB_NOTICE n
+inner join GCCOM_PAYMENT_FORM pf on n.ID_PAYMENT_FORM = pf.ID_PAYMENT_FORM
+inner join GCCD_RELATIONSHIP c on c.ID_RELATIONSHIP = pf.id_customer
+inner join gccom_address cad on cad.ID_ADDRESS = c.ID_ADDRESS
+inner join GCCOM_GEO_COUNTRY nac on nac.ID_GEO_COUNTRY = c.nationality
+inner join GCCOM_COLLECTION_FORM_TYPE cft on pf.COLLECTION_FORM_TYPE = cft.COD_DEVELOP
+where exists (select 1 from gccom_bill b inner join gccb_notice_bill nb on b.id_bill = nb.id_bill inner join gccom_contracted_service cs on cs.id_contracted_service = b.id_contracted_service where nb.id_notice = n.id_notice
+ and b.COLLECTION_STATUS = 'ESTFAC0005' and b.bill_type = 'TFGEN00001' 
+ )
