@@ -1,0 +1,31 @@
+SELECT gwtc.description as contractor,
+       gmd.serial_num as meter_no,
+	   (select value = 
+			case id_device_sector 
+				when '1' then (select gav.name_type from gcgt_me_device_attribute gcda, gcgt_attribute_values gav where gcda.cod_master_attribute = gav.cod_master_attribute and  gcda.cod_master_attribute = 'DEVMETSIZE' and gcda.value = gav.cod_develop and gcda.id_device = gmd.id_device)
+				when '6' then (select gav.name_type from gcgt_me_device_attribute gcda, gcgt_attribute_values gav where gcda.cod_master_attribute = gav.cod_master_attribute and  gcda.cod_master_attribute = 'METERDIAME' and gcda.value = gav.cod_develop and gcda.id_device = gmd.id_device) 
+			end
+	   from  gcgt_me_device_type gmdt where gmdt.cod_develop = gmdm.id_device_type) as meter_size,
+       gmdma.mark_name as meter_brand,
+       gme.reception_date as issuance_date,
+       gms.status_desc as meter_status,
+       gmc.description as issued_warehouse
+  FROM gcgt_me_device gmd,
+       gcgt_me_device_model gmdm,
+       gcgt_me_device_mark gmdma,
+       gcgt_me_entry gme,
+       gcgt_me_status gms,
+       gcgt_me_center gmc,
+       gcgt_wo_technical_center gwtc,
+       gcgt_wo_tc_center gwtce
+ WHERE     gmd.id_center = gmc.id_center
+       AND gmc.id_center = gwtce.id_center
+       AND gwtce.id_technical_center = gwtc.id_center
+       AND gwtc.id_contractor IS NOT NULL 
+       AND gmd.id_model = gmdm.id_model
+       AND gmdm.id_mark = gmdma.id_mark
+       AND gmd.id_entry = gme.id_entry
+       AND gmd.cod_status = gms.cod_status
+       AND (gwtc.description = '$P!{MeterContractor}' OR '$P!{MeterContractor}'='-999')
+       AND (gmd.cod_status = '$P!{MeterStatus}' OR '$P!{MeterStatus}'='-999' )
+       AND (gmc.cod_center = '$P!{IssuedWarehouse}' OR '$P!{IssuedWarehouse}'='-999' )
