@@ -1,0 +1,20 @@
+SELECT TOP 10
+r.DOC_NUMBER as 'Customer Doc ID',
+dt.name_type as 'Customer Doc Type',
+r.full_name as customerName,
+coalesce(d2.[TEXT], bt.NAME_TYPE ) AS 'Bill Type',
+B.billing_date as billDate,
+pf.FORMATTED_ACC_NUM as account,
+B.total_amount as billAmount,
+coalesce(d1.[TEXT], bs.NAME_TYPE ) AS 'Status'
+from GCCOM_ACCOUNT_BUNCHER AB
+INNER JOIN GCCOM_BILL B on B.ID_PAYMENT_FORM = AB.ID_PAYMENT_FORM
+INNER JOIN GCCOM_PAYMENT_FORM pf on pf.ID_PAYMENT_FORM = B.ID_PAYMENT_FORM
+INNER JOIN GCCOM_BILL_STATUS bs on bs.cod_develop = B.billing_status
+LEFT JOIN GCTS_DICTIONARY d1 on bs.NAME_TYPE_XI18N = d1.ID and d1.LOCALE = 'en'
+INNER JOIN GCCOM_GENERABLE_BILL_TYPE bt on bt.cod_develop = B.BILL_TYPE
+LEFT JOIN GCTS_DICTIONARY d2 on bt.NAME_TYPE_XI18N = d2.ID and d2.LOCALE = 'en'
+INNER JOIN GCCD_RELATIONSHIP r on pf.ID_CUSTOMER = r.ID_RELATIONSHIP
+INNER JOIN GCCOM_PERSONAL_DOCUMENT_TYPE dt on dt.COD_DEVELOP = r.DOC_TYPE
+where ab.END_DATE IS NULL
+order by B.TOTAL_AMOUNT desc
