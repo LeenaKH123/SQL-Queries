@@ -1,0 +1,96 @@
+with t as 
+(select 
+gpf.ID_PAYMENT_FORM as Account_ID,
+(SELECT TOP 1 gb.BILLING_DATE
+	FROM GCCOM_BILL gb
+	WHERE gb.id_payment_form = gpf.ID_PAYMENT_FORM
+	order by gb.BILLING_DATE DESC) as Last_billing_date,
+(SELECT TOP 1 gb.TOTAL_AMOUNT
+	FROM GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	INNER JOIN gccom_sector_supply ss ON ss.ID_SECTOR_SUPPLY = cs.ID_SECTOR_SUPPLY
+	WHERE gb.id_payment_form = gpf.ID_PAYMENT_FORM AND ss.ID_SECTOR = 1
+	order by gb.BILLING_DATE DESC ) as Last_billed_elec,
+(SELECT TOP 1 gb.TOTAL_AMOUNT
+	FROM GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	INNER JOIN gccom_sector_supply ss ON ss.ID_SECTOR_SUPPLY = cs.ID_SECTOR_SUPPLY
+	WHERE gb.id_payment_form = gpf.ID_PAYMENT_FORM AND ss.ID_SECTOR = 3
+	order by gb.BILLING_DATE DESC ) as Last_billed_water,
+(SELECT TOP 1 gb.TOTAL_AMOUNT
+	FROM GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	WHERE gb.id_payment_form = gpf.ID_PAYMENT_FORM AND cs.ID_OFFERED_SERVICE = 176
+	order by gb.BILLING_DATE DESC ) as Last_billed_rate,
+(SELECT TOP 1 gb.TOTAL_AMOUNT
+	FROM GCCOM_BILL gb
+	inner join GCCOM_CONTRACTED_SERVICE cs ON cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+	WHERE gb.id_payment_form = gpf.ID_PAYMENT_FORM AND cs.ID_OFFERED_SERVICE = 10000000001
+	order by gb.BILLING_DATE DESC ) as Last_billed_rent,
+(SELECT TOP 1 oc.COLLECTION_DATE
+	FROM GCCB_ONLINE_COLLECTION oc
+	WHERE oc.ID_PAYMENT_FORM = gpf.ID_PAYMENT_FORM
+	order by oc.COLLECTION_DATE DESC ) as Last_payment_date,
+(SELECT TOP 1 oc.COLLECTION_AMOUNT
+	FROM GCCB_ONLINE_COLLECTION oc
+	WHERE oc.ID_PAYMENT_FORM = gpf.ID_PAYMENT_FORM
+	order by oc.COLLECTION_DATE DESC ) as Last_payment_amount
+from 
+	GCCOM_PAYMENT_FORM gpf
+group by gpf.ID_PAYMENT_FORM
+)
+SELECT
+	DISTINCT pf.REFERENCE as Account_ID,
+	ouc_report.i18n_jasper('$P!{Language}', pft.DESCRIPTION_XI18N, pft.DESCRIPTION) as Signal,	
+	(ISNULL(rel.CUSTOMER_NAME, '')+ ' ' + ISNULL(rel.SURNAME_1, '')+ ' ' + ISNULL(rel.SURNAME_2,'')) as Customer_name,
+	rel.DOC_NUMBER as Document_ID,
+	ouc_report.i18n_jasper('$P!{Language}', pdt.NAME_TYPE_XI18N, pdt.NAME_TYPE) as Doc_Type,	
+	t.Last_billing_date,
+	t.Last_billed_elec,
+	t.Last_billed_water,
+	t.Last_billed_rate,
+	t.Last_billed_rent,
+	(ISNULL(t.Last_billed_elec, 0) + ISNULL(t.Last_billed_water, 0) 
+	+ ISNULL(t.Last_billed_rate, 0) + ISNULL(t.Last_billed_rent, 0)) as Last_billed_total_amount,
+	t.Last_payment_date,
+	t.Last_payment_amount,
+	(SELECT SUM(gb.PENDING_AMOUNT)
+		FROM GCCOM_BILL gb
+		inner join GCCOM_CONTRACTED_SERVICE cs ON cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+		INNER JOIN gccom_sector_supply ss ON ss.ID_SECTOR_SUPPLY = cs.ID_SECTOR_SUPPLY
+		WHERE gb.id_payment_form = pf.ID_PAYMENT_FORM AND ss.ID_SECTOR = 1 
+		AND gb.COLLECTION_STATUS IS NOT NULL ) as Outstanding_elec,
+	(SELECT SUM(gb.PENDING_AMOUNT)
+		FROM GCCOM_BILL gb
+		inner join GCCOM_CONTRACTED_SERVICE cs ON cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+		INNER JOIN gccom_sector_supply ss ON ss.ID_SECTOR_SUPPLY = cs.ID_SECTOR_SUPPLY
+		WHERE gb.id_payment_form = pf.ID_PAYMENT_FORM AND ss.ID_SECTOR = 3
+		AND gb.COLLECTION_STATUS IS NOT NULL ) as Outstanding_water,
+	(SELECT SUM(gb.PENDING_AMOUNT)
+		FROM GCCOM_BILL gb
+		inner join GCCOM_CONTRACTED_SERVICE cs ON cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+		WHERE gb.id_payment_form = pf.ID_PAYMENT_FORM AND cs.ID_OFFERED_SERVICE = 176
+		AND gb.COLLECTION_STATUS IS NOT NULL ) as Outstanding_rate,
+	(SELECT SUM(gb.PENDING_AMOUNT)
+		FROM GCCOM_BILL gb
+		inner join GCCOM_CONTRACTED_SERVICE cs ON cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+		WHERE gb.id_payment_form = pf.ID_PAYMENT_FORM AND cs.ID_OFFERED_SERVICE = 10000000001
+		AND gb.COLLECTION_STATUS IS NOT NULL ) as Outstanding_rent,
+	(SELECT SUM(gb.PENDING_AMOUNT)
+		FROM GCCOM_BILL gb
+		inner join GCCOM_CONTRACTED_SERVICE cs ON cs.ID_CONTRACTED_SERVICE = gb.ID_CONTRACTED_SERVICE
+		WHERE gb.id_payment_form = pf.ID_PAYMENT_FORM
+		AND gb.COLLECTION_STATUS IS NOT NULL ) as Total_outstanding, 
+	ouc_report.i18n_jasper('$P!{Language}', ps.NAME_TYPE_XI18N, ps.NAME_TYPE)as Account_status,		
+	rel.EMAIL1 as Account_email,
+	pf.description as Account_description
+FROM GCCOM_PAYMENT_FORM pf
+inner join GCCOM_ACCOUNT_BUNCHER ab ON ab.ID_PAYMENT_FORM = pf.ID_PAYMENT_FORM
+inner join t on t.Account_ID = pf.ID_PAYMENT_FORM 
+INNER join GCCOM_BILL bill ON bill.id_payment_form = pf.ID_PAYMENT_FORM
+INNER JOIN GCCOM_PAYMENT_FORM_TYPE pft ON pft.COD_DEVELOP = pf.COD_TYPE
+INNER JOIN GCCD_RELATIONSHIP rel ON rel.ID_RELATIONSHIP = pf.ID_CUSTOMER
+INNER JOIN GCCOM_PAYMENTFORM_STATUS ps ON ps.COD_DEVELOP = pf.PF_STATUS
+INNER JOIN GCCOM_PERSONAL_DOCUMENT_TYPE pdt ON pdt.COD_DEVELOP = rel.DOC_TYPE
+WHERE (pf.REFERENCE = '$P!{AccountID}') and 
+(bill.DISPATCH_COLL_DATE BETWEEN '$P!{Date_From}' and '$P!{Date_To}')
